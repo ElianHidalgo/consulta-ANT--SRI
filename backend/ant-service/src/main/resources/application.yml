@@ -1,0 +1,34 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: ant-service
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+      timeout: 2s
+      connect-timeout: 2s
+  jackson:
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+ant:
+  base-url: ${ANT_URL:https://consultaweb.ant.gob.ec/PortalWEB/paginas/clientes/clp_grid_citaciones.jsp}
+  connect-timeout: 3s
+  read-timeout: 10s
+  # Expresión que extrae los puntos del HTML de la ANT (grupo 1). Ajustar tras inspeccionar la página real.
+  puntos-regex: '${ANT_PUNTOS_REGEX:(?i)puntos[^0-9]{0,60}(\d{1,2})}'
+  cache:
+    # La ANT tiene baja disponibilidad: se conserva 7 días el último dato bueno (ver README)
+    puntos-ttl: 7d
+    fresh: 5m

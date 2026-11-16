@@ -1,0 +1,36 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: sri-service
+  data:
+    redis:
+      # Upstash: rediss://default:<password>@<host>.upstash.io:6379  (rediss = TLS)
+      url: ${REDIS_URL:redis://localhost:6379}
+      timeout: 2s
+      connect-timeout: 2s
+  jackson:
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+sri:
+  catastro-base-url: ${SRI_CATASTRO_URL:https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente}
+  vehiculo-base-url: ${SRI_VEHICULO_URL:https://srienlinea.sri.gob.ec/sri-matriculacion-vehicular-recaudacion-servicio-internet/rest/BaseVehiculo}
+  connect-timeout: 3s
+  read-timeout: 8s
+  cache:
+    # Tiempo máximo que se conserva el "último dato bueno" (ver README, sección Caché)
+    contribuyente-ttl: 30d
+    vehiculo-ttl: 7d
+    # Mientras el dato tenga menos de este tiempo se sirve desde caché sin consultar al SRI
+    fresh: 2m

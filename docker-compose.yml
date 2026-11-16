@@ -1,0 +1,34 @@
+services:
+  sri-service:
+    build:
+      context: ./backend
+      args:
+        MODULE: sri-service
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      CORS_ALLOWED_ORIGINS: http://localhost:8080
+      # Para demostrar con el simulador local, descomente:
+      # SRI_CATASTRO_URL: http://host.docker.internal:9000/sri/catastro
+      # SRI_VEHICULO_URL: http://host.docker.internal:9000/sri/vehiculo
+    ports:
+      - "8081:8081"
+
+  ant-service:
+    build:
+      context: ./backend
+      args:
+        MODULE: ant-service
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      CORS_ALLOWED_ORIGINS: http://localhost:8080
+      # ANT_URL: http://host.docker.internal:9000/ant/clp_grid_citaciones.jsp
+    ports:
+      - "8082:8082"
+
+  web:
+    build: ./frontend
+    depends_on:
+      - sri-service
+      - ant-service
+    ports:
+      - "8080:80"
