@@ -1,0 +1,24 @@
+# Uso: docker compose -f docker-compose.yml -f docker-compose.mock.yml up --build
+# Agrega el simulador del SRI/ANT y apunta los servicios a él.
+services:
+  mock:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./tools/mock-upstream:/app:ro
+    command: node server.js
+    ports:
+      - "9000:9000"
+
+  sri-service:
+    depends_on: [mock]
+    environment:
+      SRI_CATASTRO_URL: http://mock:9000/sri/catastro
+      SRI_VEHICULO_URL: http://mock:9000/sri/vehiculo
+      SRI_CACHE_FRESH: 0s
+
+  ant-service:
+    depends_on: [mock]
+    environment:
+      ANT_URL: http://mock:9000/ant/clp_grid_citaciones.jsp
+      ANT_CACHE_FRESH: 0s
