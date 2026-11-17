@@ -33,6 +33,22 @@ Get-Content $envFile | ForEach-Object {
 }
 if (-not $env:REDIS_URL -or $env:REDIS_URL -like '*CAMBIAR*') { throw 'Configura REDIS_URL en el archivo .env' }
 
+# --- Java 21 (el proyecto compila con release 21) ---
+# Si JAVA_HOME apunta a otra versión, se busca un JDK 21 instalado y se usa solo para esta ejecución.
+function Test-Jdk21($dir) {
+    $rel = Join-Path $dir 'release'
+    return (Test-Path $rel) -and ((Get-Content $rel -Raw) -match 'JAVA_VERSION="21')
+}
+if (-not ($env:JAVA_HOME -and (Test-Jdk21 $env:JAVA_HOME))) {
+    $jdk = Get-ChildItem 'C:\Program Files\Java', 'C:\Program Files\Eclipse Adoptium', 'C:\Program Files\Microsoft' `
+               -Directory -ErrorAction SilentlyContinue |
+           Where-Object { Test-Jdk21 $_.FullName } | Select-Object -First 1
+    if (-not $jdk) { throw 'No se encontró un JDK 21. Instálalo o configura JAVA_HOME con un JDK 21.' }
+    $env:JAVA_HOME = $jdk.FullName
+    $env:Path = (Join-Path $jdk.FullName 'bin') + ';' + $env:Path
+}
+Write-Host "Usando Java: $env:JAVA_HOME"
+
 # --- Modo simulador ---
 if ($Mock) {
     $env:SRI_CATASTRO_URL = 'http://localhost:9000/sri/catastro'
@@ -55,13 +71,17 @@ function Start-Svc($name, $workDir, $cmd) {
 function Wait-Port($port, $name, $timeoutSec) {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     while ($sw.Elapsed.TotalSeconds -lt $timeoutSec) {
-        try {
-            $c = New-Object Net.Sockets.TcpClient
-            $c.Connect('localhost', $port)
-            $c.Close()
-            Write-Host "  OK  $name (puerto $port)" -ForegroundColor Green
-            return
-        } catch { Start-Sleep -Seconds 3 }
+        # Vite escucha en ::1 (IPv6) y Spring en IPv4: se prueban ambas direcciones.
+        foreach ($ip in '127.0.0.1', '::1') {
+            try {
+                $c = New-Object Net.Sockets.TcpClient([Net.IPAddress]::Parse($ip).AddressFamily)
+                $c.Connect($ip, $port)
+                $c.Close()
+                Write-Host "  OK  $name (puerto $port)" -ForegroundColor Green
+                return
+            } catch { }
+        }
+        Start-Sleep -Seconds 3
     }
     Write-Warning "$name no respondió en $timeoutSec s. Revisa logs\ para ver el error."
 }

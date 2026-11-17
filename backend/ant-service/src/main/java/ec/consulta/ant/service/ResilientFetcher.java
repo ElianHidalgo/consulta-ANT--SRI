@@ -8,6 +8,8 @@ import ec.consulta.ant.exception.ServicioNoDisponibleException;
 import ec.consulta.ant.exception.UpstreamException;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -28,6 +30,8 @@ import org.springframework.stereotype.Component;
 public class ResilientFetcher {
 
     private static final Logger log = LoggerFactory.getLogger(ResilientFetcher.class);
+    private static final DateTimeFormatter FECHA_EC =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of("America/Guayaquil"));
 
     private final SnapshotStore store;
     private final Clock clock;
@@ -55,7 +59,7 @@ public class ResilientFetcher {
             if (guardado.isPresent()) {
                 Snapshot<T> s = guardado.get();
                 String aviso = "El servicio " + servicio + " no respondió. Se muestran los últimos datos obtenidos el "
-                        + s.fetchedAt() + "; pueden no estar actualizados.";
+                        + FECHA_EC.format(s.fetchedAt()) + " (hora de Ecuador); pueden no estar actualizados.";
                 return new Resultado<>(s.data(), Origen.CACHE, s.fetchedAt(), true, aviso);
             }
             throw new ServicioNoDisponibleException(servicio);

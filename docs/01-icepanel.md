@@ -2,21 +2,9 @@
 
 Esta guía es 100 % manual: IcePanel se opera desde su web (https://app.icepanel.io). Los nombres de botones pueden variar un poco si IcePanel actualiza su interfaz, pero la lógica es la misma.
 
-## Paso 0. Sube el código a GitHub (antes de IcePanel)
+## Paso 0. Código en GitHub ✅ (hecho)
 
-IcePanel solo puede enlazar carpetas que ya existan en GitHub.
-
-```bash
-cd consulta-sri-ant
-git init
-git add .
-git commit -m "Sistema de consulta SRI + ANT con caché"
-git branch -M main
-git remote add origin https://github.com/ElianHidalgo/consulta-sri-ant.git   # crea antes el repo vacío en github.com
-git push -u origin main
-```
-
-Se usa **un solo repositorio (monorepo)** con las carpetas `frontend/`, `backend/sri-service/` y `backend/ant-service/`. Así enlazas todo con una sola integración.
+Repositorio: https://github.com/ElianHidalgo/consulta-ANT--SRI (monorepo con `frontend/`, `backend/sri-service/` y `backend/ant-service/`). Antes de enlazar en IcePanel, asegúrate de haber hecho push de los últimos cambios.
 
 ## Paso 1. Crear la cuenta y el Landscape
 
@@ -76,7 +64,7 @@ Las tecnologías se eligen en el campo **Technology** del objeto (IcePanel trae 
 ## Paso 4. Conectar GitHub y enlazar cada contenedor al código
 
 1. Conecta GitHub con IcePanel. Dentro de IcePanel busca la opción de integraciones del organization/landscape (**Manage → Integrations** o desde la sección de **Links** de un objeto → conectar GitHub), pulsa **GitHub** y autoriza.
-2. En la pantalla de GitHub elige **Only select repositories** y marca `consulta-sri-ant` (o "All repositories"), y acepta **Install**.
+2. En la pantalla de GitHub elige **Only select repositories** y marca `consulta-ANT--SRI` (o "All repositories"), y acepta **Install**.
 3. Vuelve a IcePanel. Selecciona un objeto, baja en la pestaña **Details** hasta la sección **Links** y pulsa **+ Add link**. Elige el tipo (repo, branch, carpeta o archivo) y selecciona el destino.
 
 Enlaza así:
@@ -86,7 +74,7 @@ Enlaza así:
 | Frontend web | carpeta `frontend` |
 | Servicio SRI | carpeta `backend/sri-service` |
 | Servicio ANT | carpeta `backend/ant-service` |
-| Sistema de Consulta SRI-ANT | repositorio completo `consulta-sri-ant` |
+| Sistema de Consulta SRI-ANT | repositorio completo `consulta-ANT--SRI` |
 
 Notas:
 - El plan gratuito permite enlazar hasta 10 objetos; con los 4 de arriba basta.
@@ -107,7 +95,7 @@ Notas:
 - [ ] Los nombres coinciden con las carpetas/servicios reales.
 - [ ] Los 3 contenedores de código tienen un **Link** a su carpeta en GitHub.
 - [ ] El enlace de lectura abre en incógnito.
-- [ ] El README del repo incluye el enlace de IcePanel (sugerencia: agrégalo bajo el título).
+- [ ] Pegaste el enlace de IcePanel en `README.md`, reemplazando `PEGAR_AQUI_EL_ENLACE_DE_ICEPANEL`.
 
 ## Referencia rápida del modelo (por si prefieres revisar en texto)
 

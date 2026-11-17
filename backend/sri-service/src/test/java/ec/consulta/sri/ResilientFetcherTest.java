@@ -80,7 +80,7 @@ class ResilientFetcherTest {
         assertThat(r.datos()).isEqualTo("dato-bueno");
         assertThat(r.origen()).isEqualTo(Origen.CACHE);
         assertThat(r.desactualizado()).isTrue();
-        assertThat(r.advertencia()).contains("no respondió").contains("2026-11-15T10:00:00Z");
+        assertThat(r.advertencia()).contains("no respondió").contains("15/11/2026 05:00 (hora de Ecuador)");
     }
 
     @Test

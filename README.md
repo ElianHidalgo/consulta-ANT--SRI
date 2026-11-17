@@ -2,6 +2,12 @@
 
 Sistema web que, a partir de un correo y un RUC de persona natural, verifica al contribuyente en el SRI, consulta su vehículo por matrícula y obtiene los puntos de su licencia en la ANT. Como la web de la ANT tiene baja disponibilidad, **cada respuesta buena se guarda en una caché en la nube (Upstash Redis)** y se devuelve desde allí cuando el servicio externo falla, avisando que el dato no es reciente.
 
+| Entregable | Enlace |
+|---|---|
+| Modelo C4 en IcePanel (solo lectura) | **PEGAR_AQUI_EL_ENLACE_DE_ICEPANEL** |
+| Repositorio | https://github.com/ElianHidalgo/consulta-ANT--SRI |
+| Prueba de usabilidad | [`docs/02-usabilidad.md`](docs/02-usabilidad.md) |
+
 ## Arquitectura
 
 ```
@@ -80,19 +86,42 @@ Solo las respuestas adecuadas llegan a la caché: los errores de negocio (404, 4
 
 ## Cómo ejecutarlo
 
-Guía completa y paso a paso en [`docs/03-despliegue.md`](docs/03-despliegue.md). Resumen:
+Requisitos: **JDK 21**, Maven 3.9+, Node 20+ y un archivo `.env` con `REDIS_URL` de Upstash (copia `.env.example`). Guía completa en [`docs/03-despliegue.md`](docs/03-despliegue.md).
+
+### Inicio rápido en Windows (doble clic)
+
+| Archivo | Qué hace |
+|---|---|
+| `iniciar.bat` | Levanta todo con el **simulador** del SRI/ANT (recomendado para la demo y la prueba de usabilidad) |
+| `iniciar-real.bat` | Levanta todo contra el **SRI y la ANT reales** |
+| `detener.bat` | Detiene todos los servicios |
+
+Abre http://localhost:5173. Los logs quedan en `logs/`. El script busca un JDK 21 instalado aunque `JAVA_HOME` apunte a otra versión. En Linux/macOS: `./dev.sh [--mock]` y `./dev.sh --stop`.
+
+### Con Docker
 
 ```bash
-cp .env.example .env            # pegar REDIS_URL de Upstash (rediss://default:PASSWORD@HOST:6379)
-docker compose up --build       # web en http://localhost:8080
+cp .env.example .env                 # pegar REDIS_URL de Upstash (rediss://default:PASSWORD@HOST:6379)
+docker compose up --build            # servicios reales, web en http://localhost:8080
+docker compose -f docker-compose.yml -f docker-compose.mock.yml up --build   # con el simulador
 ```
 
-Sin Docker: `cd backend && mvn -pl sri-service spring-boot:run` (idem `ant-service`) y `cd frontend && npm install && npm run dev` (http://localhost:5173).
+### Demostrar la caché (con el simulador levantado)
 
-Tests del backend: `cd backend && mvn test`. Build del frontend: `cd frontend && npm run build`.
+```bash
+curl -i localhost:8082/api/v1/licencias/1713175071/puntos   # origen SERVICIO_EXTERNO
+curl "localhost:9000/__control?ant=down"                    # apaga la ANT simulada
+curl -i localhost:8082/api/v1/licencias/1713175071/puntos   # 200, origen CACHE, desactualizado=true, Warning: 110
+curl -i localhost:8082/api/v1/licencias/1710034065/puntos   # cédula nunca consultada: 503 + Retry-After
+curl "localhost:9000/__control?ant=up"                      # vuelve a encender la ANT
+```
 
-## Pendientes que debes validar manualmente
+Tests del backend: `cd backend && mvn test` (39 pruebas). Build del frontend: `cd frontend && npm run build`.
 
+## Estado frente a los servicios reales y pendientes
+
+- **SRI**: la consulta de contribuyente se probó contra el servicio real y responde correctamente. Falta confirmar con una placa real los nombres de campos del vehículo (ver abajo).
+- **ANT**: durante las pruebas (16 y 17/11/2026) la web real respondió siempre **502 Bad Gateway**, lo que confirma su baja disponibilidad. El sistema responde 503 estructurado (sin dato previo) o el último dato bueno de la caché.
 - **Parser de la ANT** (`AntParser`, propiedad `ant.puntos-regex`): la ANT no tiene API, se lee HTML. Abre la URL real con una cédula en el navegador, localiza dónde aparece el texto de los puntos y ajusta la expresión regular.
 - **Campos del vehículo** (`SriMapper.vehiculo`): se mapean varios nombres posibles; revisa el JSON real y ajusta si hace falta. Todos los campos igual se muestran desde `detalle`.
 - **Certificado de la ANT**: si el servicio falla con error SSL (`PKIX path building failed`), el sitio de la ANT suele tener la cadena de certificados incompleta; importa el certificado intermedio en el truststore de Java.

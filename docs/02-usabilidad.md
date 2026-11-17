@@ -5,10 +5,9 @@ Objetivo de la rúbrica: hacer la prueba con **una persona**, con **tareas defin
 ## 1. Preparación (15 min)
 
 1. Elige a **una persona que no haya visto el sistema** (compañero, familiar). Mejor si tiene un perfil parecido al usuario real (conduce, tiene vehículo).
-2. Levanta el sistema (ver `03-despliegue.md`). Para no usar datos personales reales, usa el simulador:
-   - Terminal: `node tools/mock-upstream/server.js`
+2. Levanta el sistema con el simulador (así no usas datos personales reales y no dependes de la ANT, que suele estar caída): doble clic en **`iniciar.bat`** y espera a que se abra http://localhost:5173.
    - Datos de prueba: RUC `1713175071001`, matrícula `PCQ1234`, correo cualquiera con formato válido.
-   - Para la tarea 4 necesitarás poder apagar la ANT: `curl "localhost:9000/__control?ant=down"` (y `ant=up` para encenderla).
+   - Para la tarea 4 necesitarás apagar la ANT: abre en otra pestaña http://localhost:9000/__control?ant=down (y http://localhost:9000/__control?ant=up para encenderla). Hazlo sin que la persona lo vea.
 3. Abre la interfaz en el navegador, en una ventana limpia, y pulsa **"Nueva consulta"** (reinicia el registro automático de tiempos).
 4. Prepara cronómetro (o graba pantalla con permiso de la persona) y esta hoja.
 5. Pide consentimiento verbal: *"Estamos probando el sistema, no a ti. Puedes parar cuando quieras."*
@@ -25,7 +24,7 @@ Lee solo el enunciado de la tarea. **No ayudes** ni expliques la pantalla. Pide 
 | T4 | (con la ANT apagada) "Vuelve a consultar los puntos. ¿Qué te dice la pantalla sobre ese dato?" | Entiende que el dato no es reciente y cuál es su fecha |
 | T5 | "Ingresa un RUC mal escrito (ej. 12345) y dime qué harías." | Entiende el mensaje de error y lo corrige |
 
-Para T4: apaga la ANT, pulsa "Nueva consulta" y repite la consulta con el mismo RUC **después** de haber consultado antes con la ANT encendida (si no, no habrá dato guardado y verás error 503, que también es un resultado válido para anotar). Si no quieres esperar la ventana `fresh` de 5 min, arranca el servicio ANT con `ANT_CACHE_FRESH=0s`.
+Para T4: apaga la ANT, pulsa "Nueva consulta" y repite la consulta con el mismo RUC **después** de haber consultado antes con la ANT encendida (si no, no habrá dato guardado y verás error 503, que también es un resultado válido para anotar). `iniciar.bat` ya arranca con `ANT_CACHE_FRESH=0s`, así que cada consulta intenta primero la ANT y se ve el respaldo de la caché.
 
 ## 3. Hoja de registro (llenar durante la prueba)
 
@@ -73,5 +72,7 @@ Ejemplos del **estilo** esperado (reemplázalos por lo que realmente observes):
 - Si tardó en notar el error: mover el mensaje de error junto al campo y enfocar el campo con error.
 
 ## 6. Qué entregar
+
+Guarda las capturas y el CSV en `docs/evidencias/` (por ejemplo `usabilidad-registro.csv`, `T4-aviso-dato-no-reciente.png`) y enlázalos aquí.
 
 Esta hoja llenada + (opcional) el CSV descargado + 1–2 capturas o un video corto + la tabla de mejoras.

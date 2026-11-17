@@ -5,3 +5,7 @@ dist/
 *.iml
 .idea/
 .vscode/
+logs/
+.dev-pids
+*.tsbuildinfo
+.github/modernize/
