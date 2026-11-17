@@ -13,7 +13,7 @@ const contribuyente = (ruc) => [{
   numeroRuc: ruc,
   razonSocial: 'PEREZ GOMEZ JUAN CARLOS',
   estadoContribuyenteRuc: 'ACTIVO',
-  actividadContribuyente: 'ACTIVIDADES DE CONSULTORIA INFORMATICA',
+  actividadEconomicaPrincipal: 'ACTIVIDADES DE CONSULTORIA INFORMATICA',
   tipoContribuyente: 'PERSONA NATURAL',
   personaSociedad: 'PNL',
   regimen: 'GENERAL',

@@ -23,7 +23,7 @@ export function FormIdentificacion({ cargando, onEnviar }: Props) {
 
   return (
     <form onSubmit={enviar} noValidate>
-      <h2>1. Sus datos</h2>
+      <h2>1. Sus datos (SRI)</h2>
       <label htmlFor="correo">Correo electrónico</label>
       <input
         id="correo"

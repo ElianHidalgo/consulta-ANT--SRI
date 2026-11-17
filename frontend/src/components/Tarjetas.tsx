@@ -76,7 +76,7 @@ export function TarjetaPuntos({ estado }: { estado: Estado<LicenciaPuntos> }) {
   const porcentaje = Math.round((p.puntos / p.puntosMaximos) * 100);
   return (
     <section className="tarjeta">
-      <h2>Puntos de la licencia</h2>
+      <h2>Puntos de la licencia · cédula {p.cedula}</h2>
       <AvisoDatoAntiguo meta={estado.respuesta.meta} />
       <p className="puntos">
         <span>{p.puntos}</span> de {p.puntosMaximos} puntos

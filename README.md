@@ -29,9 +29,16 @@ El modelo C4 y cómo crearlo en IcePanel están en [`docs/01-icepanel.md`](docs/
 
 ## Flujo de uso
 
+La interfaz tiene **dos módulos independientes** (pestañas) en el mismo frontend; cada uno llama a su microservicio y se puede usar sin pasar por el otro:
+
+**Módulo SRI** (`sri-service`)
 1. El usuario ingresa **correo y RUC** → `GET /api/v1/contribuyentes/{ruc}?correo=` verifica que sea contribuyente (`existePorNumeroRuc`), que sea **persona natural** y devuelve sus datos (`obtenerPorNumerosRuc`).
-2. Con la cédula (10 primeros dígitos del RUC) el frontend consulta los puntos: `GET /api/v1/licencias/{cedula}/puntos`.
-3. El usuario ingresa su **matrícula** → `GET /api/v1/vehiculos/{placa}`.
+2. A continuación se pide la **matrícula** → `GET /api/v1/vehiculos/{placa}`.
+
+**Módulo ANT** (`ant-service`)
+1. El usuario ingresa su **cédula** (y opcionalmente la placa) → `GET /api/v1/licencias/{cedula}/puntos?placa=` devuelve los puntos de la licencia, desde la ANT o desde la caché si la ANT no responde.
+
+Al cambiar de pestaña no se pierde lo consultado; **"Nueva consulta"** limpia ambos módulos.
 
 ## Contrato de la API
 

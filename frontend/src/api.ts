@@ -31,5 +31,7 @@ export const consultarContribuyente = (ruc: string, correo: string) =>
 export const consultarVehiculo = (placa: string) =>
   get<Vehiculo>(`/api/v1/vehiculos/${encodeURIComponent(placa)}`);
 
-export const consultarPuntos = (cedula: string) =>
-  get<LicenciaPuntos>(`/api/v1/licencias/${encodeURIComponent(cedula)}/puntos`);
+export const consultarPuntos = (cedula: string, placa?: string) =>
+  get<LicenciaPuntos>(
+    `/api/v1/licencias/${encodeURIComponent(cedula)}/puntos` + (placa ? `?placa=${encodeURIComponent(placa)}` : ''),
+  );

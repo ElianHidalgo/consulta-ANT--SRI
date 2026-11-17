@@ -6,7 +6,7 @@ Objetivo de la rúbrica: hacer la prueba con **una persona**, con **tareas defin
 
 1. Elige a **una persona que no haya visto el sistema** (compañero, familiar). Mejor si tiene un perfil parecido al usuario real (conduce, tiene vehículo).
 2. Levanta el sistema con el simulador (así no usas datos personales reales y no dependes de la ANT, que suele estar caída): doble clic en **`iniciar.bat`** y espera a que se abra http://localhost:5173.
-   - Datos de prueba: RUC `1713175071001`, matrícula `PCQ1234`, correo cualquiera con formato válido.
+   - Datos de prueba: RUC `1713175071001` y matrícula `PCQ1234` (pestaña SRI); cédula `1713175071` (pestaña ANT); correo cualquiera con formato válido.
    - Para la tarea 4 necesitarás apagar la ANT: abre en otra pestaña http://localhost:9000/__control?ant=down (y http://localhost:9000/__control?ant=up para encenderla). Hazlo sin que la persona lo vea.
 3. Abre la interfaz en el navegador, en una ventana limpia, y pulsa **"Nueva consulta"** (reinicia el registro automático de tiempos).
 4. Prepara cronómetro (o graba pantalla con permiso de la persona) y esta hoja.
@@ -19,12 +19,12 @@ Lee solo el enunciado de la tarea. **No ayudes** ni expliques la pantalla. Pide 
 | # | Tarea (lo que lees) | Criterio de éxito |
 |---|---|---|
 | T1 | "Averigua si tu RUC está registrado como contribuyente. Usa este RUC y este correo." | Ve la tarjeta del contribuyente con su nombre |
-| T2 | "Cuántos puntos tiene la licencia de esta persona?" | Dice el número de puntos correcto sin ayuda |
+| T2 | "¿Cuántos puntos tiene la licencia de la cédula 1713175071?" | Encuentra la pestaña ANT y dice 28 puntos sin ayuda |
 | T3 | "Consulta los datos del vehículo con esta matrícula." | Ve la tarjeta del vehículo (marca/modelo) |
-| T4 | (con la ANT apagada) "Vuelve a consultar los puntos. ¿Qué te dice la pantalla sobre ese dato?" | Entiende que el dato no es reciente y cuál es su fecha |
+| T4 | (con la ANT apagada) "Vuelve a consultar los puntos de la misma cédula. ¿Qué te dice la pantalla sobre ese dato?" | Entiende que el dato no es reciente y cuál es su fecha |
 | T5 | "Ingresa un RUC mal escrito (ej. 12345) y dime qué harías." | Entiende el mensaje de error y lo corrige |
 
-Para T4: apaga la ANT, pulsa "Nueva consulta" y repite la consulta con el mismo RUC **después** de haber consultado antes con la ANT encendida (si no, no habrá dato guardado y verás error 503, que también es un resultado válido para anotar). `iniciar.bat` ya arranca con `ANT_CACHE_FRESH=0s`, así que cada consulta intenta primero la ANT y se ve el respaldo de la caché.
+Para T4: apaga la ANT y pide que repita la consulta en la pestaña **ANT** con la misma cédula **después** de haber consultado antes con la ANT encendida (si no, no habrá dato guardado y verás error 503, que también es un resultado válido para anotar). `iniciar.bat` ya arranca con `ANT_CACHE_FRESH=0s`, así que cada consulta intenta primero la ANT y se ve el respaldo de la caché.
 
 ## 3. Hoja de registro (llenar durante la prueba)
 

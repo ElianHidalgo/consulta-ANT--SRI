@@ -40,3 +40,12 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .barra div { height: 100%; background: var(--azul); }
 
 footer { margin-top: 24px; }
+
+.pestanas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.pestana { margin: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  background: #fff; color: var(--texto); border: 1px solid var(--borde); border-radius: 10px; padding: 12px 14px; }
+.pestana strong { font-size: 1.05rem; }
+.pestana span { font-size: 0.85rem; color: #4b5563; }
+.pestana.activa { border: 2px solid var(--azul); background: #eff6ff; }
+.pestana.activa strong { color: var(--azul); }
+.opcional { font-weight: 400; color: #6b7280; }

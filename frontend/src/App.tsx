@@ -1,102 +1,64 @@
 import { useState } from 'react';
-import { ApiError, consultarContribuyente, consultarPuntos, consultarVehiculo } from './api';
-import { Cargando, ErrorCaja } from './components/Aviso';
-import { FormIdentificacion } from './components/FormIdentificacion';
-import { FormPlaca } from './components/FormPlaca';
-import { TarjetaContribuyente, TarjetaPuntos, TarjetaVehiculo } from './components/Tarjetas';
-import type { ApiResponse, Contribuyente, Estado, LicenciaPuntos, Vehiculo } from './types';
+import { ModuloAnt } from './components/ModuloAnt';
+import { ModuloSri } from './components/ModuloSri';
 import { descargarCsv, registrar, reiniciarRegistro } from './usabilityLog';
 
-const inactivo = { tipo: 'inactivo' } as const;
+type Modulo = 'sri' | 'ant';
 
-function aError(e: unknown): { tipo: 'error'; codigo: string; mensaje: string } {
-  if (e instanceof ApiError) return { tipo: 'error', codigo: e.codigo, mensaje: e.message };
-  return { tipo: 'error', codigo: 'ERROR', mensaje: 'Ocurrió un error inesperado.' };
-}
+const PESTANAS: { id: Modulo; titulo: string; detalle: string }[] = [
+  { id: 'sri', titulo: 'SRI', detalle: 'Contribuyente y vehículo' },
+  { id: 'ant', titulo: 'ANT', detalle: 'Puntos de licencia' },
+];
 
 export default function App() {
-  const [contribuyente, setContribuyente] = useState<Estado<Contribuyente>>(inactivo);
-  const [vehiculo, setVehiculo] = useState<Estado<Vehiculo>>(inactivo);
-  const [puntos, setPuntos] = useState<Estado<LicenciaPuntos>>(inactivo);
+  const [activo, setActivo] = useState<Modulo>('sri');
+  // Cambiar la clave vuelve a montar los módulos y limpia sus consultas.
+  const [sesion, setSesion] = useState(0);
 
-  async function identificar(correo: string, ruc: string) {
-    registrar('envio_identificacion');
-    setContribuyente({ tipo: 'cargando' });
-    setVehiculo(inactivo);
-    setPuntos(inactivo);
-    try {
-      const r: ApiResponse<Contribuyente> = await consultarContribuyente(ruc, correo);
-      setContribuyente({ tipo: 'ok', respuesta: r });
-      registrar('exito_identificacion', r.meta.origen + (r.meta.desactualizado ? ' (no reciente)' : ''));
-      // La cédula son los 10 primeros dígitos del RUC de una persona natural.
-      void cargarPuntos(ruc.substring(0, 10));
-    } catch (e) {
-      const err = aError(e);
-      setContribuyente(err);
-      registrar('error_identificacion', err.codigo);
-    }
-  }
-
-  async function cargarPuntos(cedula: string) {
-    setPuntos({ tipo: 'cargando' });
-    try {
-      const r = await consultarPuntos(cedula);
-      setPuntos({ tipo: 'ok', respuesta: r });
-      registrar('exito_puntos', r.meta.origen + (r.meta.desactualizado ? ' (no reciente)' : ''));
-    } catch (e) {
-      const err = aError(e);
-      setPuntos(err);
-      registrar('error_puntos', err.codigo);
-    }
-  }
-
-  async function buscarVehiculo(placa: string) {
-    registrar('envio_placa');
-    setVehiculo({ tipo: 'cargando' });
-    try {
-      const r = await consultarVehiculo(placa);
-      setVehiculo({ tipo: 'ok', respuesta: r });
-      registrar('exito_vehiculo', r.meta.origen + (r.meta.desactualizado ? ' (no reciente)' : ''));
-    } catch (e) {
-      const err = aError(e);
-      setVehiculo(err);
-      registrar('error_vehiculo', err.codigo);
-    }
+  function cambiar(m: Modulo) {
+    if (m === activo) return;
+    setActivo(m);
+    registrar('cambio_modulo', m);
   }
 
   function reiniciar() {
-    setContribuyente(inactivo);
-    setVehiculo(inactivo);
-    setPuntos(inactivo);
+    setSesion((s) => s + 1);
+    setActivo('sri');
     reiniciarRegistro();
   }
-
-  const identificado = contribuyente.tipo === 'ok';
 
   return (
     <main>
       <header>
         <h1>Consulta de contribuyente, vehículo y licencia</h1>
-        <p>Verifique su RUC en el SRI, consulte su vehículo y los puntos de su licencia.</p>
+        <p>Elija el módulo: el SRI verifica su RUC y su vehículo; la ANT muestra los puntos de su licencia.</p>
       </header>
 
-      <div className="tarjeta">
-        <FormIdentificacion cargando={contribuyente.tipo === 'cargando'} onEnviar={identificar} />
-        {contribuyente.tipo === 'cargando' && <Cargando texto="Verificando el RUC en el SRI…" />}
-        {contribuyente.tipo === 'error' && <ErrorCaja codigo={contribuyente.codigo} mensaje={contribuyente.mensaje} />}
+      <div className="pestanas" role="tablist" aria-label="Módulos de consulta">
+        {PESTANAS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            id={`tab-${p.id}`}
+            aria-selected={activo === p.id}
+            aria-controls={`panel-${p.id}`}
+            className={activo === p.id ? 'pestana activa' : 'pestana'}
+            onClick={() => cambiar(p.id)}
+          >
+            <strong>{p.titulo}</strong>
+            <span>{p.detalle}</span>
+          </button>
+        ))}
       </div>
 
-      {contribuyente.tipo === 'ok' && <TarjetaContribuyente r={contribuyente.respuesta} />}
-      <TarjetaPuntos estado={puntos} />
-
-      {identificado && (
-        <>
-          <div className="tarjeta">
-            <FormPlaca cargando={vehiculo.tipo === 'cargando'} onEnviar={buscarVehiculo} />
-          </div>
-          <TarjetaVehiculo estado={vehiculo} />
-        </>
-      )}
+      {/* Ambos módulos quedan montados para no perder lo consultado al cambiar de pestaña. */}
+      <div role="tabpanel" id="panel-sri" aria-labelledby="tab-sri" hidden={activo !== 'sri'}>
+        <ModuloSri key={`sri-${sesion}`} />
+      </div>
+      <div role="tabpanel" id="panel-ant" aria-labelledby="tab-ant" hidden={activo !== 'ant'}>
+        <ModuloAnt key={`ant-${sesion}`} />
+      </div>
 
       <footer>
         <button type="button" className="secundario" onClick={reiniciar}>

@@ -31,7 +31,7 @@ public final class SriMapper {
                 texto(n, "estadoContribuyenteRuc"),
                 texto(n, "tipoContribuyente"),
                 texto(n, "regimen"),
-                texto(n, "actividadContribuyente"),
+                primero(n, "actividadEconomicaPrincipal", "actividadContribuyente"),
                 texto(n, "obligadoLlevarContabilidad"),
                 texto(fechas, "fechaInicioActividades"),
                 texto(fechas, "fechaActualizacion"));

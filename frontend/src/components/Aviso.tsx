@@ -1,3 +1,4 @@
+import { ApiError } from '../api';
 import type { Meta } from '../types';
 
 export function fechaLegible(iso: string): string {
@@ -31,4 +32,10 @@ export function ErrorCaja({ codigo, mensaje }: { codigo: string; mensaje: string
       <small>Código: {codigo}</small>
     </div>
   );
+}
+
+/** Convierte cualquier error en el estado de error que muestran las tarjetas. */
+export function aError(e: unknown): { tipo: 'error'; codigo: string; mensaje: string } {
+  if (e instanceof ApiError) return { tipo: 'error', codigo: e.codigo, mensaje: e.message };
+  return { tipo: 'error', codigo: 'ERROR', mensaje: 'Ocurrió un error inesperado.' };
 }
