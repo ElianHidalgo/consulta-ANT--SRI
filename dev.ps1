@@ -20,8 +20,25 @@ function Stop-Dev {
     }
 }
 
-if ($Stop) { Stop-Dev; return }
+function Clear-Ports {
+    # Cierra procesos de este proyecto que hayan quedado escuchando en los puertos (p. ej. un simulador abierto a mano).
+    foreach ($port in 9000, 8081, 8082, 5173) {
+        $owners = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).OwningProcess | Sort-Object -Unique
+        foreach ($procId in $owners) {
+            $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -ErrorAction SilentlyContinue).CommandLine
+            if ($cmd -match 'mock-upstream|consulta-sri-ant|spring-boot|vite') {
+                Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+                Write-Host "Cerrado proceso anterior en el puerto $port (PID $procId)." -ForegroundColor Yellow
+            } elseif ($cmd) {
+                Write-Warning "El puerto $port está ocupado por otro programa (PID $procId). Ciérralo antes de continuar."
+            }
+        }
+    }
+}
+
+if ($Stop) { Stop-Dev; Clear-Ports; return }
 if (Test-Path $pidFile) { Stop-Dev }   # limpia una ejecución anterior
+Clear-Ports
 
 # --- Cargar .env ---
 $envFile = Join-Path $root '.env'
@@ -56,6 +73,7 @@ if ($Mock) {
     $env:ANT_URL          = 'http://localhost:9000/ant/clp_grid_citaciones.jsp'
     $env:SRI_CACHE_FRESH  = '0s'
     $env:ANT_CACHE_FRESH  = '0s'
+    $env:CACHE_PREFIJO    = 'sim:'   # caché del simulador separada de la real
 }
 
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null

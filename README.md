@@ -1,10 +1,10 @@
 # Consulta de contribuyente, vehículo y licencia (SRI + ANT)
 
-Sistema web que, a partir de un correo y un RUC de persona natural, verifica al contribuyente en el SRI, consulta su vehículo por matrícula y obtiene los puntos de su licencia en la ANT. Como la web de la ANT tiene baja disponibilidad, **cada respuesta buena se guarda en una caché en la nube (Upstash Redis)** y se devuelve desde allí cuando el servicio externo falla, avisando que el dato no es reciente.
+Sistema web que verifica a un contribuyente persona natural en el SRI, consulta la información de su vehículo por matrícula y obtiene los puntos de su licencia en la ANT. Como la web de la ANT tiene baja disponibilidad, cada respuesta válida se guarda en una caché en la nube (Upstash Redis) y se devuelve desde allí cuando el servicio externo falla, indicando que el dato no es reciente.
 
-| Entregable | Enlace |
+| Recurso | Enlace |
 |---|---|
-| Modelo C4 en IcePanel (solo lectura) | **PEGAR_AQUI_EL_ENLACE_DE_ICEPANEL** |
+| Modelo C4 en IcePanel | [Nivel 1 – Contexto](https://s.icepanel.io/kSUBIBBkZIVwsj/HMm9) · [Nivel 2 – Contenedores](https://s.icepanel.io/kSUBIBBkZIVwsj/iANb) |
 | Repositorio | https://github.com/ElianHidalgo/consulta-ANT--SRI |
 | Prueba de usabilidad | [`docs/02-usabilidad.md`](docs/02-usabilidad.md) |
 
@@ -19,30 +19,51 @@ Usuario ─▶ Frontend (React + Nginx) ─┬─▶ sri-service (Java 21, Sprin
 
 | Carpeta | Contenedor C4 | Tecnología |
 |---|---|---|
-| `frontend/` | Frontend web | React 18 + Vite + TypeScript, servido por Nginx (también enruta `/api`) |
+| `frontend/` | Frontend web | React 18, Vite, TypeScript; servido por Nginx, que también enruta `/api` |
 | `backend/sri-service/` | Servicio SRI | Java 21, Spring Boot 3.3, RestClient |
 | `backend/ant-service/` | Servicio ANT | Java 21, Spring Boot 3.3, Jsoup |
 | (externo) | Caché en la nube | Upstash Redis (TLS) |
-| `tools/mock-upstream/` | — | Simulador local del SRI y la ANT (solo desarrollo) |
+| `tools/mock-upstream/` | — | Simulador local del SRI y la ANT para desarrollo |
 
-El modelo C4 y cómo crearlo en IcePanel están en [`docs/01-icepanel.md`](docs/01-icepanel.md).
+## Modelo C4 y justificación
+
+C4 es un modelo para describir la arquitectura de un sistema de software en cuatro niveles de detalle: **Contexto**, **Contenedores**, **Componentes** y **Código**. Cada nivel amplía una parte del anterior, de modo que el sistema puede explicarse tanto a personas no técnicas (nivel 1) como a desarrolladores (niveles 2 a 4). El modelo de este proyecto está en IcePanel y su descripción detallada en [`docs/01-icepanel.md`](docs/01-icepanel.md).
+
+**Niveles representados**
+
+| Nivel | Qué muestra en este sistema | Por qué se incluye |
+|---|---|---|
+| 1. Contexto | El usuario, el Sistema de Consulta SRI-ANT y los sistemas externos SRI y ANT | Delimita qué se construyó y qué depende de terceros. Hace visible que el SRI y la ANT están fuera de nuestro control, que es la razón de diseñar el patrón de caché |
+| 2. Contenedores | Frontend web, Servicio SRI, Servicio ANT y Caché en la nube | Muestra las unidades que se ejecutan y despliegan por separado, sus tecnologías y cómo se comunican. Coincide uno a uno con las carpetas del repositorio |
+
+**Niveles no representados**
+
+- *Componentes*: cada servicio tiene una estructura interna pequeña y repetida (controlador → servicio → cliente externo + `ResilientFetcher` + almacén de caché). Un diagrama por servicio repetiría lo que ya muestra el nivel 2 sin aportar decisiones nuevas.
+- *Código*: el propio código cumple esa función. En IcePanel, cada contenedor está enlazado a su carpeta en GitHub, por lo que el modelo lleva directamente a la implementación.
+
+**Decisiones de arquitectura que refleja el modelo**
+
+- **Un microservicio por proveedor externo** (Servicio SRI y Servicio ANT): el SRI ofrece una API REST estable y la ANT solo una página HTML con baja disponibilidad. Separarlos aísla las fallas: si la ANT cae, la consulta del SRI sigue funcionando, y cada servicio usa la tecnología adecuada (RestClient para JSON, Jsoup para HTML).
+- **Caché como contenedor propio (Store) en la nube**: es un componente de infraestructura compartido, externo a los servicios y persistente entre reinicios. Representarla como contenedor deja explícito el patrón de última respuesta válida que exige la baja disponibilidad de la ANT.
+- **Frontend como único punto de entrada**: Nginx sirve la SPA y enruta `/api` a cada servicio, por lo que el usuario solo se relaciona con el frontend y los servicios no se exponen directamente.
+- **SRI y ANT como sistemas externos**: se modelan fuera del límite del sistema porque no se controlan; sus relaciones indican el protocolo real (REST JSON para el SRI, HTML para la ANT).
 
 ## Flujo de uso
 
-La interfaz tiene **dos módulos independientes** (pestañas) en el mismo frontend; cada uno llama a su microservicio y se puede usar sin pasar por el otro:
+La interfaz tiene dos módulos independientes, organizados en pestañas. Cada uno llama a su microservicio y puede usarse sin pasar por el otro.
 
 **Módulo SRI** (`sri-service`)
-1. El usuario ingresa **correo y RUC** → `GET /api/v1/contribuyentes/{ruc}?correo=` verifica que sea contribuyente (`existePorNumeroRuc`), que sea **persona natural** y devuelve sus datos (`obtenerPorNumerosRuc`).
-2. A continuación se pide la **matrícula** → `GET /api/v1/vehiculos/{placa}`.
+1. El usuario ingresa correo y RUC → `GET /api/v1/contribuyentes/{ruc}?correo=` verifica que sea contribuyente (`existePorNumeroRuc`), que sea persona natural y devuelve sus datos (`obtenerPorNumerosRuc`).
+2. A continuación ingresa la matrícula → `GET /api/v1/vehiculos/{placa}`.
 
 **Módulo ANT** (`ant-service`)
-1. El usuario ingresa su **cédula** (y opcionalmente la placa) → `GET /api/v1/licencias/{cedula}/puntos?placa=` devuelve los puntos de la licencia, desde la ANT o desde la caché si la ANT no responde.
+1. El usuario ingresa su cédula y, opcionalmente, la placa → `GET /api/v1/licencias/{cedula}/puntos?placa=` devuelve los puntos de la licencia desde la ANT, o desde la caché si la ANT no responde.
 
-Al cambiar de pestaña no se pierde lo consultado; **"Nueva consulta"** limpia ambos módulos.
+Al cambiar de pestaña se conserva lo consultado; el botón **Nueva consulta** limpia ambos módulos.
 
 ## Contrato de la API
 
-Éxito (200):
+Respuesta exitosa (200):
 
 ```json
 {
@@ -56,7 +77,7 @@ Al cambiar de pestaña no se pierde lo consultado; **"Nueva consulta"** limpia a
 }
 ```
 
-Error (siempre con esta forma):
+Respuesta de error (misma estructura en todos los casos):
 
 ```json
 { "error": { "codigo": "RUC_INVALIDO", "mensaje": "…", "detalles": [], "timestamp": "…", "ruta": "/api/v1/contribuyentes/123" } }
@@ -68,71 +89,79 @@ Error (siempre con esta forma):
 | `/api/v1/vehiculos/{placa}` | GET | 200, 400 `PLACA_INVALIDA`, 404 `VEHICULO_NO_ENCONTRADO`, 503 |
 | `/api/v1/licencias/{cedula}/puntos?placa=` | GET | 200, 400 `CEDULA_INVALIDA` / `PLACA_INVALIDA`, 503 |
 
-Otros: 405 `METODO_NO_PERMITIDO`, 404 `RUTA_NO_ENCONTRADA`, 500 `ERROR_INTERNO`. El 503 incluye `Retry-After: 60`. Un dato servido desde la caché por falla del servicio externo incluye la cabecera `Warning: 110 - "Response is Stale"`.
+Otros: 405 `METODO_NO_PERMITIDO`, 404 `RUTA_NO_ENCONTRADA`, 500 `ERROR_INTERNO`. El 503 incluye la cabecera `Retry-After: 60`. Un dato servido desde la caché por falla del servicio externo incluye `Warning: 110 - "Response is Stale"`.
 
 Documentación interactiva (Swagger UI): `http://localhost:8081/swagger-ui.html` y `http://localhost:8082/swagger-ui.html`.
 
 ## Caché y resiliencia
 
-Patrón **"última respuesta buena"** (`ResilientFetcher`):
+Patrón de última respuesta válida (`ResilientFetcher`):
 
-1. Si hay un dato guardado con menos de `fresh` de antigüedad, se sirve de la caché (protege a la ANT de consultas repetidas).
-2. Si no, se consulta al servicio externo (timeout de conexión 3 s, lectura 8–10 s, 2 intentos). Si la respuesta es adecuada, **se guarda** con su fecha.
-3. Si el servicio externo falla (timeout, 5xx, HTML sin los puntos, valor fuera de rango) y hay dato guardado → se devuelve ese dato con `desactualizado: true`, `consultadoEn` (fecha real del dato) y una `advertencia`; el frontend muestra un aviso amarillo.
-4. Si falla y no hay dato guardado → 503 estructurado.
+1. Si existe un dato guardado con antigüedad menor a `fresh`, se responde desde la caché, lo que evita consultas repetidas a la ANT.
+2. En caso contrario se consulta al servicio externo (conexión 3 s, lectura 8–10 s, 2 intentos). Si la respuesta es válida, se guarda junto con su fecha.
+3. Si el servicio externo falla (timeout, 5xx, HTML sin puntos, valor fuera de rango) y existe un dato guardado, se devuelve con `desactualizado: true`, la fecha real del dato en `consultadoEn` y una `advertencia`. El frontend muestra un aviso amarillo.
+4. Si falla y no existe dato guardado, se responde 503 con el error estructurado.
 
-Solo las respuestas adecuadas llegan a la caché: los errores de negocio (404, 422) y las páginas inválidas de la ANT no se guardan. Si Redis falla, el sistema sigue funcionando sin caché (no propaga el error).
+Solo se guardan respuestas válidas: los errores de negocio (404, 422) y las páginas inválidas de la ANT no llegan a la caché. Si Redis no está disponible, el sistema sigue funcionando sin caché.
 
-**Tiempos de vida (TTL) y su justificación** — configurables en `application.yml`:
+**Tiempos de vida (TTL)**, configurables en `application.yml`:
 
-| Dato | TTL máximo | `fresh` | Justificación |
+| Dato | TTL | `fresh` | Justificación |
 |---|---|---|---|
-| Puntos de licencia (ANT) | 7 días | 5 min | Los puntos cambian solo cuando se procesa una citación (días). La ANT cae con frecuencia, así que se conserva una semana; más allá, el dato es demasiado viejo para ser útil. Se muestra siempre la fecha de consulta. |
-| Contribuyente (SRI) | 30 días | 2 min | Datos del catastro que cambian muy rara vez (actualización de RUC). |
-| Vehículo (SRI) | 7 días | 2 min | Cambia con traspasos o pago de matrícula; una semana limita el riesgo de mostrar un propietario/estado viejo. |
+| Puntos de licencia (ANT) | 7 días | 5 min | Los puntos cambian solo cuando se procesa una citación. La ANT cae con frecuencia, por lo que se conserva una semana; pasado ese tiempo el dato pierde utilidad. Siempre se muestra la fecha de consulta. |
+| Contribuyente (SRI) | 30 días | 2 min | Datos del catastro que cambian con muy poca frecuencia. |
+| Vehículo (SRI) | 7 días | 2 min | Cambia con traspasos o pago de matrícula; una semana limita el riesgo de mostrar un propietario o estado anterior. |
 
-## Cómo ejecutarlo
+## Ejecución
 
-Requisitos: **JDK 21**, Maven 3.9+, Node 20+ y un archivo `.env` con `REDIS_URL` de Upstash (copia `.env.example`). Guía completa en [`docs/03-despliegue.md`](docs/03-despliegue.md).
+Requisitos: JDK 21, Maven 3.9+, Node 20+ y un archivo `.env` con `REDIS_URL` de Upstash (a partir de `.env.example`). La guía completa está en [`docs/03-despliegue.md`](docs/03-despliegue.md).
 
-### Inicio rápido en Windows (doble clic)
+### Windows
 
-| Archivo | Qué hace |
+| Archivo | Descripción |
 |---|---|
-| `iniciar.bat` | Levanta todo con el **simulador** del SRI/ANT (recomendado para la demo y la prueba de usabilidad) |
-| `iniciar-real.bat` | Levanta todo contra el **SRI y la ANT reales** |
+| `iniciar.bat` | Levanta los servicios contra el SRI y la ANT reales |
+| `iniciar-simulador.bat` | Levanta los servicios con la ANT simulada (se puede apagar para probar la caché). Los RUC y placas de prueba son simulados; cualquier otro se consulta al SRI real |
 | `detener.bat` | Detiene todos los servicios |
 
-Abre http://localhost:5173. Los logs quedan en `logs/`. El script busca un JDK 21 instalado aunque `JAVA_HOME` apunte a otra versión. En Linux/macOS: `./dev.sh [--mock]` y `./dev.sh --stop`.
+La interfaz queda disponible en http://localhost:5173 y los logs en `logs/`. El script usa un JDK 21 instalado aunque `JAVA_HOME` apunte a otra versión. En Linux/macOS: `./dev.sh [--mock]` y `./dev.sh --stop`.
 
-### Con Docker
+### Docker
 
 ```bash
-cp .env.example .env                 # pegar REDIS_URL de Upstash (rediss://default:PASSWORD@HOST:6379)
+cp .env.example .env                 # REDIS_URL de Upstash: rediss://default:PASSWORD@HOST:6379
 docker compose up --build            # servicios reales, web en http://localhost:8080
 docker compose -f docker-compose.yml -f docker-compose.mock.yml up --build   # con el simulador
 ```
 
-### Demostrar la caché (con el simulador levantado)
+### Prueba de la caché con el simulador
 
 ```bash
 curl -i localhost:8082/api/v1/licencias/1713175071/puntos   # origen SERVICIO_EXTERNO
 curl "localhost:9000/__control?ant=down"                    # apaga la ANT simulada
 curl -i localhost:8082/api/v1/licencias/1713175071/puntos   # 200, origen CACHE, desactualizado=true, Warning: 110
-curl -i localhost:8082/api/v1/licencias/1710034065/puntos   # cédula nunca consultada: 503 + Retry-After
-curl "localhost:9000/__control?ant=up"                      # vuelve a encender la ANT
+curl -i localhost:8082/api/v1/licencias/1710034065/puntos   # cédula sin dato previo: 503 + Retry-After
+curl "localhost:9000/__control?ant=up"                      # enciende la ANT simulada
 ```
 
-Tests del backend: `cd backend && mvn test` (39 pruebas). Build del frontend: `cd frontend && npm run build`.
+En modo simulador las claves de la caché llevan el prefijo `sim:`, de modo que nunca se mezclan con los datos reales.
 
-## Estado frente a los servicios reales y pendientes
+### Pruebas
 
-- **SRI**: la consulta de contribuyente se probó contra el servicio real y responde correctamente. Falta confirmar con una placa real los nombres de campos del vehículo (ver abajo).
-- **ANT**: durante las pruebas (16 y 17/11/2026) la web real respondió siempre **502 Bad Gateway**, lo que confirma su baja disponibilidad. El sistema responde 503 estructurado (sin dato previo) o el último dato bueno de la caché.
-- **Parser de la ANT** (`AntParser`, propiedad `ant.puntos-regex`): la ANT no tiene API, se lee HTML. Abre la URL real con una cédula en el navegador, localiza dónde aparece el texto de los puntos y ajusta la expresión regular.
-- **Campos del vehículo** (`SriMapper.vehiculo`): se mapean varios nombres posibles; revisa el JSON real y ajusta si hace falta. Todos los campos igual se muestran desde `detalle`.
-- **Certificado de la ANT**: si el servicio falla con error SSL (`PKIX path building failed`), el sitio de la ANT suele tener la cadena de certificados incompleta; importa el certificado intermedio en el truststore de Java.
+- Backend: `cd backend && mvn test` (39 pruebas: validaciones, patrón de caché, parser de la ANT y contrato HTTP).
+- Frontend: `cd frontend && npm run build`.
+
+## Estado frente a los servicios reales
+
+- **SRI**: la verificación de contribuyente y la consulta de datos funcionan contra el servicio real.
+- **ANT**: durante las pruebas del 16 y 17/11/2026 la web de la ANT respondió con errores 401 y 502. El sistema respondió con el error estructurado 503 y el mensaje de servicio no disponible, como corresponde cuando no existe un dato previo en la caché. Como la ANT real no devolvió ninguna respuesta válida, la visualización de los puntos y el respaldo desde la caché se verificaron con el simulador, que reemplaza únicamente a la ANT y mantiene el SRI real. El detalle y las evidencias están en [`docs/02-usabilidad.md`](docs/02-usabilidad.md#disponibilidad-de-la-ant-y-uso-del-simulador).
+
+## Limitaciones conocidas
+
+- **Lectura de la ANT** (`AntParser`, propiedad `ant.puntos-regex`): la ANT no ofrece una API y los puntos se extraen del HTML. La expresión regular es configurable por si cambia la estructura de la página.
+- **Campos del vehículo** (`SriMapper.vehiculo`): se aceptan varios nombres de campo posibles; el resto de los valores se muestran desde `detalle`.
+- **Certificado de la ANT**: si aparece `PKIX path building failed`, el sitio tiene la cadena de certificados incompleta y se debe importar el certificado intermedio en el truststore de Java.
 
 ## Prueba de usabilidad
 
-Plantilla y procedimiento en [`docs/02-usabilidad.md`](docs/02-usabilidad.md). La interfaz incluye el botón **"Descargar registro de la prueba (CSV)"** que anota tiempos, éxitos y errores.
+Procedimiento y registro en [`docs/02-usabilidad.md`](docs/02-usabilidad.md). La interfaz incluye el botón **Descargar registro de la prueba (CSV)**, que guarda los tiempos, éxitos y errores de cada acción.

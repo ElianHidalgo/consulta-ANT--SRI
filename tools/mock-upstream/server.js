@@ -3,10 +3,34 @@
 //   curl localhost:9000/__control?ant=down   -> la ANT empieza a responder 503
 //   curl localhost:9000/__control?ant=up     -> la ANT vuelve a responder
 //   (igual con sri=down|up)
+// Datos simulados: RUC 1713175071001 (persona natural), 1790016919001 (sociedad) y placa PCQ1234.
+// Cualquier otro RUC o placa se reenvía al SRI real. La ANT siempre es simulada.
 const http = require('http');
 const { URL } = require('url');
 
 const estado = { ant: 'up', sri: 'up' };
+const SRI_REAL = {
+  catastro: 'https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente',
+  vehiculo: 'https://srienlinea.sri.gob.ec/sri-matriculacion-vehicular-recaudacion-servicio-internet/rest/BaseVehiculo',
+};
+const RUCS_PRUEBA = ['1713175071001', '1790016919001'];
+const PLACAS_PRUEBA = ['PCQ1234'];
+
+/** Reenvía la consulta al SRI real y devuelve su respuesta tal cual (o 502 si no se puede conectar). */
+async function reenviarSri(res, base, ruta, query) {
+  try {
+    const r = await fetch(`${base}${ruta}?${query}`, {
+      headers: { Accept: 'application/json, text/plain, */*', 'User-Agent': 'consulta-sri-ant-mock/1.0' },
+      signal: AbortSignal.timeout(10000),
+    });
+    const cuerpo = await r.text();
+    console.log(`[SRI real] ${ruta} -> ${r.status}`);
+    return enviar(res, r.status, cuerpo, r.headers.get('content-type') || 'text/plain');
+  } catch (e) {
+    console.log(`[SRI real] ${ruta} -> sin conexión (${e.message})`);
+    return enviar(res, 502, { error: 'No se pudo conectar con el SRI real' });
+  }
+}
 const PORT = process.env.PORT || 9000;
 
 const contribuyente = (ruc) => [{
@@ -34,7 +58,7 @@ function enviar(res, code, body, tipo = 'application/json') {
   res.end(typeof body === 'string' ? body : JSON.stringify(body));
 }
 
-http.createServer((req, res) => {
+http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   const p = u.pathname;
 
@@ -47,15 +71,20 @@ http.createServer((req, res) => {
 
   if (p === '/sri/catastro/existePorNumeroRuc') {
     const ruc = u.searchParams.get('numeroRuc');
-    return enviar(res, 200, String(ruc === '1713175071001' || ruc === '1790016919001'), 'text/plain');
+    if (!RUCS_PRUEBA.includes(ruc)) return reenviarSri(res, SRI_REAL.catastro, '/existePorNumeroRuc', u.searchParams);
+    return enviar(res, 200, 'true', 'text/plain');
   }
   if (p === '/sri/catastro/obtenerPorNumerosRuc') {
     const ruc = u.searchParams.get('ruc');
+    if (!RUCS_PRUEBA.includes(ruc)) return reenviarSri(res, SRI_REAL.catastro, '/obtenerPorNumerosRuc', u.searchParams);
     return enviar(res, 200, ruc.charAt(2) === '9' ? sociedad(ruc) : contribuyente(ruc));
   }
   if (p === '/sri/vehiculo/obtenerPorNumeroPlacaOPorNumeroCampvOPorNumeroCpn') {
     const placa = u.searchParams.get('numeroPlacaCampvCpn');
-    return placa === 'PCQ1234' ? enviar(res, 200, vehiculo) : enviar(res, 200, '');
+    if (!PLACAS_PRUEBA.includes(placa)) {
+      return reenviarSri(res, SRI_REAL.vehiculo, '/obtenerPorNumeroPlacaOPorNumeroCampvOPorNumeroCpn', u.searchParams);
+    }
+    return enviar(res, 200, vehiculo);
   }
   if (p === '/ant/clp_grid_citaciones.jsp') {
     const ced = u.searchParams.get('ps_identificacion');

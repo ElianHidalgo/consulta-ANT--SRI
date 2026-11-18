@@ -10,7 +10,7 @@ stop() { [ -f $PIDS ] && while read -r p; do kill -- -"$p" 2>/dev/null || kill "
 set -a; . ./.env; set +a
 if [ "$1" = "--mock" ]; then
   export SRI_CATASTRO_URL=http://localhost:9000/sri/catastro SRI_VEHICULO_URL=http://localhost:9000/sri/vehiculo \
-         ANT_URL=http://localhost:9000/ant/clp_grid_citaciones.jsp SRI_CACHE_FRESH=0s ANT_CACHE_FRESH=0s
+         ANT_URL=http://localhost:9000/ant/clp_grid_citaciones.jsp SRI_CACHE_FRESH=0s ANT_CACHE_FRESH=0s CACHE_PREFIJO=sim:
 fi
 mkdir -p logs
 run() { name=$1; dir=$2; shift 2; (cd "$dir" && setsid bash -c "$*" > "../logs/$name.log" 2>&1 & echo $! >> "../$PIDS"); echo "Iniciando $name (logs/$name.log)"; }

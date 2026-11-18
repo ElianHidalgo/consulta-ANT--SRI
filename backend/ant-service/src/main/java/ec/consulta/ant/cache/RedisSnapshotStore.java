@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -22,10 +23,14 @@ public class RedisSnapshotStore implements SnapshotStore {
 
     private final StringRedisTemplate redis;
     private final ObjectMapper mapper;
+    /** Prefijo de las claves; en modo simulador es "sim:" para no mezclar datos simulados con los reales. */
+    private final String prefijo;
 
-    public RedisSnapshotStore(StringRedisTemplate redis, ObjectMapper mapper) {
+    public RedisSnapshotStore(StringRedisTemplate redis, ObjectMapper mapper,
+                              @Value("${app.cache.prefijo:}") String prefijo) {
         this.redis = redis;
         this.mapper = mapper;
+        this.prefijo = prefijo == null ? "" : prefijo;
     }
 
     @Override
@@ -34,7 +39,7 @@ public class RedisSnapshotStore implements SnapshotStore {
             ObjectNode envelope = mapper.createObjectNode();
             envelope.put("fetchedAt", Instant.now().toString());
             envelope.set("data", mapper.valueToTree(value));
-            redis.opsForValue().set(key, mapper.writeValueAsString(envelope), ttl);
+            redis.opsForValue().set(prefijo + key, mapper.writeValueAsString(envelope), ttl);
         } catch (Exception e) {
             log.warn("No se pudo guardar en caché la clave {}: {}", key, e.toString());
         }
@@ -43,7 +48,7 @@ public class RedisSnapshotStore implements SnapshotStore {
     @Override
     public <T> Optional<Snapshot<T>> get(String key, Class<T> type) {
         try {
-            String raw = redis.opsForValue().get(key);
+            String raw = redis.opsForValue().get(prefijo + key);
             if (raw == null) {
                 return Optional.empty();
             }

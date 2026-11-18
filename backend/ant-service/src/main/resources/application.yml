@@ -21,12 +21,15 @@ management:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  cache:
+    # Vacío en modo real; "sim:" en modo simulador para que los datos simulados no se mezclen con los reales
+    prefijo: ${CACHE_PREFIJO:}
 
 ant:
   base-url: ${ANT_URL:https://consultaweb.ant.gob.ec/PortalWEB/paginas/clientes/clp_grid_citaciones.jsp}
   connect-timeout: 3s
   read-timeout: 10s
-  # Expresión que extrae los puntos del HTML de la ANT (grupo 1). Ajustar tras inspeccionar la página real.
+  # Expresión que extrae los puntos del HTML de la ANT (grupo 1 = número de puntos).
   puntos-regex: '${ANT_PUNTOS_REGEX:(?i)puntos[^0-9]{0,60}(\d{1,2})}'
   cache:
     # La ANT tiene baja disponibilidad: se conserva 7 días el último dato bueno (ver README)

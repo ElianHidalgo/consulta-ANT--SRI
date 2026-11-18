@@ -1,8 +1,11 @@
 # Evidencias
 
-Guarda aquí:
+| Archivo | Contenido | Fuente |
+|---|---|---|
+| `T1-contribuyente-sri-real.png` | Verificación de contribuyente persona natural | SRI real |
+| `T3-vehiculo-sri-real.png` | Consulta de vehículo por matrícula | SRI real |
+| `T5-validacion-ruc-correo.png` | Validación de RUC incompleto y correo vacío | Interfaz |
+| `ANT-real-no-disponible.png` | Consulta de puntos con la ANT real caída | ANT real |
+| `T2-puntos-ant-simulada.png` | Consulta de puntos con la ANT simulada | ANT simulada |
 
-- El CSV de la prueba de usabilidad (botón "Descargar registro de la prueba (CSV)").
-- Capturas de la prueba: tarjeta del contribuyente, puntos y vehículo, aviso amarillo de "Dato no reciente" y error de RUC inválido.
-- Captura del Data Browser de Upstash con las claves `ant:puntos:*`, `sri:contribuyente:*` y `sri:vehiculo:*` y su TTL.
-- Captura del diagrama de IcePanel (por si el enlace falla durante la revisión).
+La ANT real no estuvo disponible durante la prueba, por lo que las tareas de puntos se realizaron con el simulador. La justificación está en [`../02-usabilidad.md`](../02-usabilidad.md#disponibilidad-de-la-ant-y-uso-del-simulador).

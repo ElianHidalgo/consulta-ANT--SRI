@@ -16,9 +16,11 @@ services:
       SRI_CATASTRO_URL: http://mock:9000/sri/catastro
       SRI_VEHICULO_URL: http://mock:9000/sri/vehiculo
       SRI_CACHE_FRESH: 0s
+      CACHE_PREFIJO: "sim:"
 
   ant-service:
     depends_on: [mock]
     environment:
       ANT_URL: http://mock:9000/ant/clp_grid_citaciones.jsp
       ANT_CACHE_FRESH: 0s
+      CACHE_PREFIJO: "sim:"

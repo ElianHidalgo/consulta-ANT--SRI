@@ -1,36 +1,65 @@
-# Prueba de usabilidad (1 persona, tareas definidas)
+# Prueba de usabilidad
 
-Objetivo de la rúbrica: hacer la prueba con **una persona**, con **tareas definidas**, registrar **éxito, tiempo y errores**, y proponer **mejoras concretas**. Esta plantilla está lista para llenar; **los resultados los debes registrar tú con la prueba real** (no inventes datos: la rúbrica pide evidencia de lo observado).
+Prueba moderada con un participante que no conocía el sistema. Se definieron cinco tareas y en cada una se registró el éxito, el tiempo y los errores, junto con las dudas expresadas en voz alta.
 
-## 1. Preparación (15 min)
+## 1. Preparación
 
-1. Elige a **una persona que no haya visto el sistema** (compañero, familiar). Mejor si tiene un perfil parecido al usuario real (conduce, tiene vehículo).
-2. Levanta el sistema con el simulador (así no usas datos personales reales y no dependes de la ANT, que suele estar caída): doble clic en **`iniciar.bat`** y espera a que se abra http://localhost:5173.
-   - Datos de prueba: RUC `1713175071001` y matrícula `PCQ1234` (pestaña SRI); cédula `1713175071` (pestaña ANT); correo cualquiera con formato válido.
-   - Para la tarea 4 necesitarás apagar la ANT: abre en otra pestaña http://localhost:9000/__control?ant=down (y http://localhost:9000/__control?ant=up para encenderla). Hazlo sin que la persona lo vea.
-3. Abre la interfaz en el navegador, en una ventana limpia, y pulsa **"Nueva consulta"** (reinicia el registro automático de tiempos).
-4. Prepara cronómetro (o graba pantalla con permiso de la persona) y esta hoja.
-5. Pide consentimiento verbal: *"Estamos probando el sistema, no a ti. Puedes parar cuando quieras."*
+- Sistema levantado en modo real con `iniciar.bat` (http://localhost:5173). Para las tareas de la ANT se usó el simulador, como se explica en la sección siguiente.
+- Datos reales usados con autorización de su titular: correo, RUC de persona natural, cédula y placa.
+- Antes de iniciar se pulsó **Nueva consulta** para reiniciar el registro automático de tiempos.
+- Se usó cronómetro y grabación de pantalla con consentimiento del participante.
+- Consigna inicial: *"Estamos probando el sistema, no a ti. Piensa en voz alta y puedes parar cuando quieras."*
 
-## 2. Guion para el moderador
+## Disponibilidad de la ANT y uso del simulador
 
-Lee solo el enunciado de la tarea. **No ayudes** ni expliques la pantalla. Pide que piense en voz alta. Anota todo lo que haga.
+Durante el desarrollo y la prueba (16 y 17/11/2026) la web de la ANT (`consultaweb.ant.gob.ec`) no estuvo disponible:
 
-| # | Tarea (lo que lees) | Criterio de éxito |
+- Los registros del Servicio ANT muestran que cada consulta recibió **502 Bad Gateway**, incluso después de los dos intentos configurados. Las consultas directas a la misma URL devolvieron **401** o **502**.
+- En la interfaz, la consulta de puntos con datos reales mostró el mensaje de servicio no disponible (`SERVICIO_EXTERNO_NO_DISPONIBLE`) para las cédulas probadas ([evidencia](evidencias/ANT-real-no-disponible.png)).
+- Como la ANT nunca devolvió una respuesta válida, no existía ningún dato real en la caché que el sistema pudiera mostrar como respaldo.
+
+Este comportamiento es el esperado: el sistema no falló, informó la caída con un error estructurado y un mensaje claro. Sin embargo, impedía evaluar la visualización de los puntos y el aviso de dato no reciente. Por eso, para las tareas de la ANT se usó el simulador del proyecto (`iniciar-simulador.bat`):
+
+- El simulador **solo reemplaza a la ANT**. El RUC, el correo y la placa usados se siguieron consultando en el **SRI real**.
+- La ANT simulada devuelve un valor fijo de **28 de 30 puntos** con la misma estructura HTML que procesa el Servicio ANT, de modo que el flujo interno (consulta, extracción de puntos, guardado en caché y respuesta) es el mismo que con la ANT real. Ese valor no corresponde a los puntos reales del titular.
+- Los datos simulados se guardan en la caché con el prefijo `sim:` y no se mezclan con los datos reales.
+- El simulador permite apagar la ANT a voluntad (`/__control?ant=down`) y así reproducir la caída con un dato previo guardado.
+
+| Parte evaluada | Fuente de datos |
+|---|---|
+| T1 Contribuyente, T3 Vehículo, T5 Validación | SRI real |
+| T2 Puntos, T4 Aviso de dato no reciente | ANT simulada (la ANT real no estaba disponible) |
+| Mensaje de servicio no disponible | ANT real |
+
+## 2. Tareas
+
+El moderador lee solo el enunciado, no explica la pantalla y no ofrece ayuda salvo que el participante la pida.
+
+| # | Enunciado | Criterio de éxito |
 |---|---|---|
-| T1 | "Averigua si tu RUC está registrado como contribuyente. Usa este RUC y este correo." | Ve la tarjeta del contribuyente con su nombre |
-| T2 | "¿Cuántos puntos tiene la licencia de la cédula 1713175071?" | Encuentra la pestaña ANT y dice 28 puntos sin ayuda |
-| T3 | "Consulta los datos del vehículo con esta matrícula." | Ve la tarjeta del vehículo (marca/modelo) |
-| T4 | (con la ANT apagada) "Vuelve a consultar los puntos de la misma cédula. ¿Qué te dice la pantalla sobre ese dato?" | Entiende que el dato no es reciente y cuál es su fecha |
-| T5 | "Ingresa un RUC mal escrito (ej. 12345) y dime qué harías." | Entiende el mensaje de error y lo corrige |
+| T1 | "Averigua si este RUC está registrado como contribuyente. Usa este correo y este RUC." | Ve la tarjeta del contribuyente con el nombre correcto |
+| T2 | "¿Cuántos puntos tiene la licencia de esta cédula?" | Encuentra la pestaña ANT sin ayuda y dice los puntos o explica que la ANT no está disponible |
+| T3 | "Consulta los datos del vehículo con esta matrícula." | Ve la tarjeta del vehículo (marca y modelo) |
+| T4 | "Mira el resultado de los puntos. ¿Qué te dice la pantalla sobre ese dato y qué harías?" | Con aviso amarillo: entiende que el dato no es reciente y su fecha. Con error: entiende que la ANT no respondió y que debe intentarlo más tarde |
+| T5 | "Ingresa este RUC: 12345. ¿Qué harías?" | Entiende el mensaje de error y lo corrige |
 
-Para T4: apaga la ANT y pide que repita la consulta en la pestaña **ANT** con la misma cédula **después** de haber consultado antes con la ANT encendida (si no, no habrá dato guardado y verás error 503, que también es un resultado válido para anotar). `iniciar.bat` ya arranca con `ANT_CACHE_FRESH=0s`, así que cada consulta intenta primero la ANT y se ve el respaldo de la caché.
+La web de la ANT tiene baja disponibilidad. Si respondió alguna vez para la cédula consultada, el sistema muestra el último dato guardado con el aviso de "Dato no reciente"; si nunca respondió, muestra un mensaje de servicio no disponible. En T2 y T4 se registra cuál de los dos casos ocurrió.
 
-## 3. Hoja de registro (llenar durante la prueba)
+**Criterios de medición**
+- *Éxito*: Sí (sin ayuda), Con ayuda (necesitó una pista), No (abandonó).
+- *Tiempo*: desde que termina la lectura del enunciado hasta que se cumple el criterio. Se contrasta con el CSV que genera la interfaz (**Descargar registro de la prueba (CSV)**).
+- *Errores*: clics en lugares equivocados, mensajes de validación, campos mal llenados o solicitudes de ayuda.
 
-Participante: ______ (edad/perfil): ______ Fecha: ______ Moderador: ______
+## 3. Registro
 
-| Tarea | ¿Éxito? (Sí / Con ayuda / No) | Tiempo (s) | N.º de errores | Errores / dudas observadas (literal) |
+| Dato | Valor |
+|---|---|
+| Participante | |
+| Edad / perfil | |
+| Fecha | |
+| Moderador | |
+
+| Tarea | Éxito | Tiempo (s) | Errores | Observaciones |
 |---|---|---|---|---|
 | T1 | | | | |
 | T2 | | | | |
@@ -38,41 +67,48 @@ Participante: ______ (edad/perfil): ______ Fecha: ______ Moderador: ______
 | T4 | | | | |
 | T5 | | | | |
 
-**Cómo medir**
-- *Tiempo*: desde que termina de leer la tarea hasta que logra el criterio. El CSV de la interfaz (botón **"Descargar registro de la prueba (CSV)"**) trae las marcas de tiempo de envíos y resultados; úsalo para contrastar con tu cronómetro.
-- *Errores*: clics en lugar equivocado, mensajes de validación, campos mal llenados, pedir ayuda.
-- *Éxito*: Sí (sin ayuda), Con ayuda (necesitó pista), No (abandonó).
+**Preguntas finales**
 
-**Preguntas finales (2 min)**
-1. ¿Qué fue lo más confuso? ______
-2. ¿Qué fue lo más fácil? ______
-3. Del 1 (muy difícil) al 5 (muy fácil), ¿qué tan fácil fue usarlo? ______
-4. ¿Entendió el aviso amarillo de "dato no reciente"? ______
+| Pregunta | Respuesta |
+|---|---|
+| ¿Qué fue lo más confuso? | |
+| ¿Qué fue lo más fácil? | |
+| Del 1 (muy difícil) al 5 (muy fácil), ¿qué tan fácil fue usarlo? | |
+| ¿Entendió el aviso de dato no reciente o el mensaje de servicio no disponible? | |
 
-## 4. Resumen de resultados (llenar al terminar)
+## 4. Resumen de resultados
 
-- Tareas completadas sin ayuda: __ de 5
-- Tiempo total: __ s | Tiempo promedio por tarea: __ s
-- Total de errores: __
-- Hallazgos principales (2–4): ______
+| Indicador | Valor |
+|---|---|
+| Tareas completadas sin ayuda | / 5 |
+| Tiempo total (s) | |
+| Tiempo promedio por tarea (s) | |
+| Total de errores | |
 
-## 5. Mejoras propuestas (deben ser concretas y derivadas de lo observado)
+**Hallazgos principales**
 
-Cada mejora debe responder: **qué se vio → qué se cambia → cómo se medirá que mejoró.**
+1. 
+2. 
+3. 
 
-| # | Observación (evidencia) | Mejora concreta | Prioridad | Cómo verificar |
+## 5. Mejoras propuestas
+
+Cada mejora parte de una observación concreta e indica cómo se verificará en una nueva prueba.
+
+| # | Observación | Mejora | Prioridad | Verificación |
 |---|---|---|---|---|
-| 1 | Ej.: "el usuario no vio el campo de placa tras consultar el RUC" | Hacer scroll automático / resaltar la sección 2 al mostrar el contribuyente | Alta | T3 en menos de X s |
+| 1 | | | | |
 | 2 | | | | |
 | 3 | | | | |
 
-Ejemplos del **estilo** esperado (reemplázalos por lo que realmente observes):
-- Si dudó en qué escribir en "Matrícula": agregar texto de ayuda con los formatos aceptados (placa, CAMV o CPN).
-- Si no entendió el aviso de dato no reciente: cambiar el texto a "Este dato es del <fecha>. La ANT no está respondiendo ahora".
-- Si tardó en notar el error: mover el mensaje de error junto al campo y enfocar el campo con error.
+## 6. Evidencias
 
-## 6. Qué entregar
+Archivos en [`docs/evidencias/`](evidencias/):
 
-Guarda las capturas y el CSV en `docs/evidencias/` (por ejemplo `usabilidad-registro.csv`, `T4-aviso-dato-no-reciente.png`) y enlázalos aquí.
-
-Esta hoja llenada + (opcional) el CSV descargado + 1–2 capturas o un video corto + la tabla de mejoras.
+| Archivo | Contenido | Fuente |
+|---|---|---|
+| [`T1-contribuyente-sri-real.png`](evidencias/T1-contribuyente-sri-real.png) | Contribuyente persona natural, activo | SRI real |
+| [`T2-puntos-ant-simulada.png`](evidencias/T2-puntos-ant-simulada.png) | Puntos de la licencia (28 de 30) | ANT simulada |
+| [`T3-vehiculo-sri-real.png`](evidencias/T3-vehiculo-sri-real.png) | Datos del vehículo GSG4244 | SRI real |
+| [`T5-validacion-ruc-correo.png`](evidencias/T5-validacion-ruc-correo.png) | Mensajes de validación de RUC incompleto y correo vacío | Interfaz |
+| [`ANT-real-no-disponible.png`](evidencias/ANT-real-no-disponible.png) | Mensaje de servicio no disponible con la ANT real | ANT real |
