@@ -29,17 +29,107 @@ Usuario ─▶ Frontend (React + Nginx) ─┬─▶ sri-service (Java 21, Sprin
 
 C4 es un modelo para describir la arquitectura de un sistema de software en cuatro niveles de detalle: **Contexto**, **Contenedores**, **Componentes** y **Código**. Cada nivel amplía una parte del anterior, de modo que el sistema puede explicarse tanto a personas no técnicas (nivel 1) como a desarrolladores (niveles 2 a 4). El modelo de este proyecto está en IcePanel y su descripción detallada en [`docs/01-icepanel.md`](docs/01-icepanel.md).
 
-**Niveles representados**
+**Niveles del modelo**
 
-| Nivel | Qué muestra en este sistema | Por qué se incluye |
-|---|---|---|
-| 1. Contexto | El usuario, el Sistema de Consulta SRI-ANT y los sistemas externos SRI y ANT | Delimita qué se construyó y qué depende de terceros. Hace visible que el SRI y la ANT están fuera de nuestro control, que es la razón de diseñar el patrón de caché |
-| 2. Contenedores | Frontend web, Servicio SRI, Servicio ANT y Caché en la nube | Muestra las unidades que se ejecutan y despliegan por separado, sus tecnologías y cómo se comunican. Coincide uno a uno con las carpetas del repositorio |
+| Nivel | Qué muestra en este sistema | Dónde está | Justificación |
+|---|---|---|---|
+| 1. Contexto | El usuario, el Sistema de Consulta SRI-ANT y los sistemas externos SRI y ANT | IcePanel | Delimita qué se construyó y qué depende de terceros. Hace visible que el SRI y la ANT están fuera de nuestro control, que es la razón de diseñar el patrón de caché |
+| 2. Contenedores | Frontend web, Servicio SRI, Servicio ANT y Caché en la nube | IcePanel | Muestra las unidades que se ejecutan y despliegan por separado, sus tecnologías y cómo se comunican. Coincide uno a uno con las carpetas del repositorio |
+| 3. Componentes | Las piezas internas de cada microservicio y cómo colaboran | Este README | Explica cómo cada servicio implementa la validación, la integración con el proveedor externo y el patrón de caché, que es la decisión central del diseño |
+| 4. Código | Las clases que implementan cada componente | Repositorio de GitHub | El propio código es este nivel. Cada contenedor de IcePanel está enlazado a su carpeta y la tabla del nivel 4 lleva de cada componente a su clase, por lo que no se duplica en un diagrama |
 
-**Niveles no representados**
+### Nivel 3 – Componentes del Servicio SRI
 
-- *Componentes*: cada servicio tiene una estructura interna pequeña y repetida (controlador → servicio → cliente externo + `ResilientFetcher` + almacén de caché). Un diagrama por servicio repetiría lo que ya muestra el nivel 2 sin aportar decisiones nuevas.
-- *Código*: el propio código cumple esa función. En IcePanel, cada contenedor está enlazado a su carpeta en GitHub, por lo que el modelo lleva directamente a la implementación.
+```mermaid
+flowchart LR
+    web["Frontend web<br/>(React)"]
+    subgraph sri["Servicio SRI · Spring Boot"]
+        cc["ContribuyenteController<br/>GET /api/v1/contribuyentes/{ruc}"]
+        vc["VehiculoController<br/>GET /api/v1/vehiculos/{placa}"]
+        val["Validaciones<br/>RUC, correo y placa"]
+        cs["ContribuyenteService<br/>contribuyente y persona natural"]
+        vs["VehiculoService<br/>vehículo por placa"]
+        rf["ResilientFetcher<br/>última respuesta válida"]
+        cli["SriClient<br/>HTTP REST, 2 intentos"]
+        map["SriMapper<br/>JSON del SRI a DTO"]
+        store["RedisSnapshotStore<br/>dato + fecha + TTL"]
+        err["GlobalExceptionHandler<br/>errores estructurados"]
+    end
+    sriext["SRI<br/>(sistema externo)"]
+    cache[("Caché en la nube<br/>Upstash Redis")]
+
+    web -->|REST/JSON| cc
+    web -->|REST/JSON| vc
+    cc --> val
+    vc --> val
+    cc --> cs
+    vc --> vs
+    cs --> rf
+    vs --> rf
+    rf --> store
+    cs --> cli
+    vs --> cli
+    cs --> map
+    vs --> map
+    cli -->|HTTPS/JSON| sriext
+    store -->|Redis TLS| cache
+    cc -.->|excepciones| err
+    vc -.->|excepciones| err
+```
+
+### Nivel 3 – Componentes del Servicio ANT
+
+```mermaid
+flowchart LR
+    web["Frontend web<br/>(React)"]
+    subgraph ant["Servicio ANT · Spring Boot"]
+        lc["LicenciaController<br/>GET /api/v1/licencias/{cedula}/puntos"]
+        val["Validaciones<br/>cédula y placa"]
+        ps["PuntosService<br/>puntos de la licencia"]
+        rf["ResilientFetcher<br/>última respuesta válida"]
+        cli["AntClient<br/>HTTP, 2 intentos"]
+        par["AntParser<br/>extrae puntos del HTML"]
+        store["RedisSnapshotStore<br/>dato + fecha + TTL"]
+        err["GlobalExceptionHandler<br/>errores estructurados"]
+    end
+    antext["ANT<br/>(sistema externo)"]
+    cache[("Caché en la nube<br/>Upstash Redis")]
+
+    web -->|REST/JSON| lc
+    lc --> val
+    lc --> ps
+    ps --> rf
+    rf --> store
+    ps --> cli
+    ps --> par
+    cli -->|HTTPS/HTML| antext
+    store -->|Redis TLS| cache
+    lc -.->|excepciones| err
+```
+
+**Justificación de los componentes**
+
+- **Controladores separados de los servicios**: los controladores solo definen el contrato HTTP (rutas, verbos, parámetros) y delegan la lógica, de modo que la API puede probarse sin conectarse a los proveedores externos.
+- **`Validaciones` antes de cualquier consulta**: las entradas inválidas se rechazan con 400 sin gastar una llamada al SRI o a la ANT, y los mensajes de error son claros y estables.
+- **Cliente externo aislado** (`SriClient`, `AntClient`): concentra timeouts, reintentos y la traducción de cualquier falla de red o HTTP a `UpstreamException`, la única excepción que activa el respaldo desde la caché.
+- **`AntParser` separado de `AntClient`**: la ANT entrega HTML, no una API. Separar la descarga de la extracción permite cambiar la expresión de lectura sin tocar el cliente y descartar páginas inválidas antes de guardarlas.
+- **`ResilientFetcher` como componente común**: implementa una sola vez el patrón de última respuesta válida (dato fresco, consulta externa, respaldo desactualizado o 503) y lo reutilizan todos los servicios de negocio.
+- **`RedisSnapshotStore` detrás de la interfaz `SnapshotStore`**: guarda el dato junto con la fecha en que se obtuvo, necesaria para el aviso de dato no reciente. Si Redis falla, el sistema sigue funcionando sin caché. La interfaz permite probar el patrón con un almacén en memoria.
+- **`GlobalExceptionHandler`**: garantiza que todos los errores salgan con la misma estructura (`codigo`, `mensaje`, `detalles`, `timestamp`, `ruta`) y el código HTTP adecuado.
+
+### Nivel 4 – Código
+
+| Componente | Clase |
+|---|---|
+| Controladores SRI | [`ContribuyenteController`](backend/sri-service/src/main/java/ec/consulta/sri/api/ContribuyenteController.java), [`VehiculoController`](backend/sri-service/src/main/java/ec/consulta/sri/api/VehiculoController.java) |
+| Controlador ANT | [`LicenciaController`](backend/ant-service/src/main/java/ec/consulta/ant/api/LicenciaController.java) |
+| Servicios de negocio | [`ContribuyenteService`](backend/sri-service/src/main/java/ec/consulta/sri/service/ContribuyenteService.java), [`VehiculoService`](backend/sri-service/src/main/java/ec/consulta/sri/service/VehiculoService.java), [`PuntosService`](backend/ant-service/src/main/java/ec/consulta/ant/service/PuntosService.java) |
+| Patrón de caché | [`ResilientFetcher` (SRI)](backend/sri-service/src/main/java/ec/consulta/sri/service/ResilientFetcher.java), [`ResilientFetcher` (ANT)](backend/ant-service/src/main/java/ec/consulta/ant/service/ResilientFetcher.java) |
+| Almacén de caché | [`RedisSnapshotStore` (SRI)](backend/sri-service/src/main/java/ec/consulta/sri/cache/RedisSnapshotStore.java), [`RedisSnapshotStore` (ANT)](backend/ant-service/src/main/java/ec/consulta/ant/cache/RedisSnapshotStore.java) |
+| Clientes externos | [`SriClient`](backend/sri-service/src/main/java/ec/consulta/sri/client/SriClient.java), [`AntClient`](backend/ant-service/src/main/java/ec/consulta/ant/client/AntClient.java), [`AntParser`](backend/ant-service/src/main/java/ec/consulta/ant/client/AntParser.java) |
+| Validación | [`Validaciones` (SRI)](backend/sri-service/src/main/java/ec/consulta/sri/validation/Validaciones.java), [`Validaciones` (ANT)](backend/ant-service/src/main/java/ec/consulta/ant/validation/Validaciones.java) |
+| Errores | [`GlobalExceptionHandler` (SRI)](backend/sri-service/src/main/java/ec/consulta/sri/api/GlobalExceptionHandler.java), [`GlobalExceptionHandler` (ANT)](backend/ant-service/src/main/java/ec/consulta/ant/api/GlobalExceptionHandler.java) |
+| Frontend | [`ModuloSri`](frontend/src/components/ModuloSri.tsx), [`ModuloAnt`](frontend/src/components/ModuloAnt.tsx), [`api.ts`](frontend/src/api.ts) |
 
 **Decisiones de arquitectura que refleja el modelo**
 

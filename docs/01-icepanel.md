@@ -7,6 +7,8 @@ El modelo se encuentra en IcePanel en el landscape **Consulta SRI y ANT**, con e
 
 Cada contenedor está enlazado a su carpeta en el repositorio [consulta-ANT--SRI](https://github.com/ElianHidalgo/consulta-ANT--SRI) mediante la integración de GitHub de IcePanel.
 
+Los niveles 3 (Componentes) y 4 (Código), junto con la justificación de cada nivel, están en el [README](../README.md#modelo-c4-y-justificación).
+
 ## Nivel 1 – Contexto
 
 | Tipo | Nombre | Descripción |
